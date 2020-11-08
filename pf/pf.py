@@ -12,8 +12,8 @@ from numpy import array, angle, exp, linalg, conj, r_, Inf
 from scipy.sparse import hstack, vstack
 from scipy.sparse.linalg import spsolve
 
-from dSbus_dV import dSbus_dV
-from ppoption import ppoption
+from pf.dSbus_dV import dSbus_dV
+from pf.ppoption import ppoption
 
 
 def newtonpf(Ybus, Sbus, V0, ref, pv, pq, ppopt=None):
@@ -132,4 +132,8 @@ def newtonpf(Ybus, Sbus, V0, ref, pv, pq, ppopt=None):
 
     return V, converged, i
 
+
+if __name__=="__main__":
+    from cases.case14 import case14
+    caseData = case14()
 
