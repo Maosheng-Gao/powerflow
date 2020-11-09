@@ -47,8 +47,6 @@ def dSbus_dV(Ybus, V):
     their Derivatives using Complex Matrix Notation", MATPOWER
     Technical Note 2, February 2010.
     U{http://www.pserc.cornell.edu/matpower/TN2-OPF-Derivatives.pdf}
-
-    @author: Ray Zimmerman (PSERC Cornell)
     """
     ib = range(len(V))
 

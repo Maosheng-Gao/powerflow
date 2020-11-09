@@ -19,28 +19,14 @@ from pf.ppoption import ppoption
 def newtonpf(Ybus, Sbus, V0, ref, pv, pq, ppopt=None):
     """Solves the power flow using a full Newton's method.
 
-    Solves for bus voltages given the full system admittance matrix (for
-    all buses), the complex bus power injection vector (for all buses),
-    the initial vector of complex bus voltages, and column vectors with
-    the lists of bus indices for the swing bus, PV buses, and PQ buses,
-    respectively. The bus voltage vector contains the set point for
-    generator (including ref bus) buses, and the reference angle of the
-    swing bus, as well as an initial guess for remaining magnitudes and
-    angles. C{ppopt} is a PYPOWER options vector which can be used to
-    set the termination tolerance, maximum number of iterations, and
-    output options (see L{ppoption} for details). Uses default options if
-    this parameter is not given. Returns the final complex voltages, a
-    flag which indicates whether it converged or not, and the number of
-    iterations performed.
-
-    @see: L{runpf}
-
-    @author: Ray Zimmerman (PSERC Cornell)
+    Ybus: the full system admittance matrix (forall buses),
+    Sbus: the complex bus power injection vector (for all buses),
+    V0:   the initial vector of complex bus voltages,
+    ref:  column vectors with the lists of bus indices for the swing bus,
+    pv:   column vectors with the lists of bus indices for PV buses
+    pq:   column vectors with the lists of bus indices for PQ buses,
     """
     ## default arguments
-    if ppopt is None:
-        ppopt = ppoption()
-
     ## options
     tol     = ppopt['PF_TOL']
     max_it  = ppopt['PF_MAX_IT']
@@ -133,7 +119,9 @@ def newtonpf(Ybus, Sbus, V0, ref, pv, pq, ppopt=None):
     return V, converged, i
 
 
-if __name__=="__main__":
+if __name__ == "__main__":
     from cases.case14 import case14
+    from pf.makeY import makeY
     caseData = case14()
-
+    Y = makeY(caseData['bus'], caseData['branch'])
+    print(123)
