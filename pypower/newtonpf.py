@@ -8,24 +8,34 @@
 import sys
 
 from numpy import array, angle, exp, linalg, conj, r_, Inf
-import numpy as np
 
 from scipy.sparse import hstack, vstack
 from scipy.sparse.linalg import spsolve
 
-from pf.dSbus_dV import dSbus_dV
-from pf.ppoption import ppoption
+from pypower.dSbus_dV import dSbus_dV
+from pypower.ppoption import ppoption
 
 
 def newtonpf(Ybus, Sbus, V0, ref, pv, pq, ppopt=None):
     """Solves the power flow using a full Newton's method.
 
-    Ybus: the full system admittance matrix (forall buses),
-    Sbus: the complex bus power injection vector (for all buses),
-    V0:   the initial vector of complex bus voltages,
-    ref:  column vectors with the lists of bus indices for the swing bus,
-    pv:   column vectors with the lists of bus indices for PV buses
-    pq:   column vectors with the lists of bus indices for PQ buses,
+    Solves for bus voltages given the full system admittance matrix (for
+    all buses), the complex bus power injection vector (for all buses),
+    the initial vector of complex bus voltages, and column vectors with
+    the lists of bus indices for the swing bus, PV buses, and PQ buses,
+    respectively. The bus voltage vector contains the set point for
+    generator (including ref bus) buses, and the reference angle of the
+    swing bus, as well as an initial guess for remaining magnitudes and
+    angles. C{ppopt} is a PYPOWER options vector which can be used to
+    set the termination tolerance, maximum number of iterations, and
+    output options (see L{ppoption} for details). Uses default options if
+    this parameter is not given. Returns the final complex voltages, a
+    flag which indicates whether it converged or not, and the number of
+    iterations performed.
+
+    @see: L{runpf}
+
+    @author: Ray Zimmerman (PSERC Cornell)
     """
     ## default arguments
     if ppopt is None:
@@ -121,21 +131,3 @@ def newtonpf(Ybus, Sbus, V0, ref, pv, pq, ppopt=None):
                              "iterations.\n" % i)
 
     return V, converged, i
-
-
-if __name__ == "__main__":
-    from cases.case14 import case14
-    from pf.makeMatrix import makeY, makeSbus
-    caseData = case14()
-    Ybus = makeY(caseData['bus'], caseData['branch'])
-    Sbus = makeSbus(caseData['baseMVA'], caseData['bus'], caseData['gen'])
-
-    # determine ref pv, pq
-    ref = np.where(caseData['bus'][:, 1] == 3)[0]
-    pv  = np.where(caseData['bus'][:, 1] == 2)[0]
-    pq  = np.where(caseData['bus'][:, 1] == 1)[0]
-
-    # prapare the init voltage
-    V0 = caseData['bus'][:, 7] * exp(1j * np.pi / 180 * caseData['bus'][:, 8])
-    res = newtonpf(Ybus, Sbus, V0, ref, pv, pq)
-    print(pv)

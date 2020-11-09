@@ -1,4 +1,6 @@
 import numpy as np
+from scipy.sparse import csr_matrix as sparse
+
 
 def makeY(nodeData, lineData):
     """
@@ -32,3 +34,31 @@ def makeY(nodeData, lineData):
         Y[Node, Node] = Y[Node, Node] + G0[n] + 1j*B0[n]
 
     return Y
+
+
+def makeSbus(baseMVA, bus, gen):
+    """Builds the vector of complex bus power injections.
+
+    Returns the vector of complex bus power injections, that is, generation
+    minus load. Power is expressed in per unit.
+
+    @see: L{makeYbus}
+
+    @author: Ray Zimmerman (PSERC Cornell)
+    """
+    ## generator info
+    on = np.flatnonzero(gen[:, 7] > 0)      ## which generators are on?
+    gbus = gen[on, 0]                   ## what buses are they at?
+
+    ## form net complex bus power injection vector
+    nb = bus.shape[0]
+    ngon = on.shape[0]
+    
+    ## connection matrix, element i, j is 1 if gen on(j) at bus i is ON
+    Cg = sparse((np.ones(ngon), (gbus, range(ngon))), (nb, ngon))
+
+    ## power injected by gens plus power injected by loads converted to p.u.
+    Sbus = ( Cg * (gen[on, 1] + 1j * gen[on, 2]) -
+             (bus[:, 3] + 1j * bus[:, 4]) ) / baseMVA
+
+    return Sbus
