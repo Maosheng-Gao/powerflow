@@ -1,89 +1,90 @@
 import numpy as np
 import random
+import copy
 from pypower.idx_bus import PD, QD, VM, VA, GS, BUS_TYPE, PV, PQ, REF
+
+
+def Nweibull(a, scale, size):
+    return scale*np.random.weibull(a, size)
+
 
 def Monte_Carlo(ppc, varance):
     bus = ppc['bus']
     windF = ppc['windF']
     PV = ppc['PV']
-    # 电负荷、气负荷、热负荷抽样，假定电负荷均服从正态分布
-    load_e_p = np.random.normal(loc=abs(varance*bus[:,PD]), size=(bus.shape[0],1))
-    load_e_q = p.random.normal(loc=abs(varance*bus[:,QD]), size=(bus.shape[0],1))
+    # 对负荷抽样，假定负荷均服从正态分布
+    load_e_p = np.random.normal(loc=bus[:, PD],  scale=abs(varance*bus[:, PD]))
+    load_e_q = np.random.normal(loc=bus[:, QD], scale=abs(varance * bus[:, QD]))
 
     # 风速威布尔分布  %假设风电只有 有功
-    Pwind = np.zeros((windF.shape[0],1))
-    Vwind = np.zeros((windF.shape[0],1))
+    Pwind = np.zeros((windF.shape[0], 1))
+    Vwind = np.zeros((windF.shape[0], 1))
+
     W_pro = 0   # 风机故障率
-    W_break = np.ones((windF.shape[0],1))
-    random = unifrnd(0,1,size(windF,1),1);  %生成连续均匀分布的随机数
-    W_break(find(random-W_pro<0),1)=0;
+    W_break = np.ones((windF.shape[0], 1))
+    random_num = np.random.rand(windF.shape[0], 1)   # 生成连续均匀分布的随机数
+    W_break[np.where(random_num-W_pro < 0)[0], 0] = 0
+    # 判断风机是否被抽掉  风机出力
+    for tt in range(windF.shape[0]):
+        if windF[tt, 1] == 0:
+            Pwind[tt, 0] = 0
+        else:
+            if W_break[tt, 0] == 0:
+                windF[tt, 0] = 0
+                Pwind[tt, 0] = 0
+            else:
+                Vwind[tt, 0] = Nweibull(windF[tt, 2], windF[tt, 3], (1, 1))  # 风速服从威布尔分布
+                if Vwind[tt, 0] > windF[tt, 4] and Vwind[tt] <= windF[tt, 5]:
+                    Pwind[tt] = windF[tt, 1]*(Vwind[tt]-windF[tt, 4])/(windF[tt, 5]-windF[tt, 4])  # 根据风速算功率
+                else:
+                    if Vwind[tt]> windF[tt, 5] and Vwind[tt] <= windF[tt, 6]:
+                        Pwind[tt] = windF[tt, 1]
+                    else:
+                        Pwind[tt] = 0
+    Ppv = np.zeros((PV.shape[0], 1))
+    PV_pro = 0    # 光伏电站故障率
+    PV_break = np.ones((PV.shape[0], 1))
+    random_num = np.random.rand(PV.shape[0], 1)  # 生成连续均匀分布的随机数
+    PV_break[np.where(random_num - PV_pro < 0)[0], 0] = 0
 
-    %判断风机是否被抽掉  风机出力
-    for tt=1:size(windF,1)
-        if windF(tt,PSET)==0
-            Pwind(tt)=0;
-        else
-           if W_break(tt)==0
-               windF(tt,PSET)=0;
-               Pwind(tt)=0;
-           else
-                  Vwind(tt)=wblrnd(windF(tt,WF_C),windF(tt,WF_K),1,1);  %风速服从威布尔分布
-                  if  Vwind(tt)> windF(tt,WF_VI) && Vwind(tt)<=windF(tt,WF_VRATE)
-                      Pwind(tt)=windF(tt,PSET)*(Vwind(tt)-windF(tt,WF_VI))/(windF(tt,WF_VRATE)-windF(tt,WF_VI));%根据风速算功率
-                  else
-                      if Vwind(tt)> windF(tt,WF_VRATE) && Vwind(tt)<=windF(tt,WF_VOUT)
-                          Pwind(tt)=windF(tt,PSET);
-                      else
-                          Pwind(tt)=0;
-                      end
-                  end
-           end
-        end
-    end
-    Ppv=zeros(size(PV,1),1);
-    PV_pro=0;   %光伏电站故障率
-    PV_break=ones(size(PV,1),1);
-    random = unifrnd(0,1,size(PV,1),1);
-    PV_break(find(random-PV_pro<0),1)=0;
+    # 光伏发电 出力
+    for ii in range(PV.shape[0]):
+        if PV[ii, 1] == 0:
+            Ppv[ii] = 0
+        else:
+            if PV_break[ii] == 0:
+                PV[ii, 1] = 0
+                Ppv[ii] = 0
+            else:
+                Ppv[ii] = PV[ii,1] * np.random.beta(PV[ii, 2], PV[ii, 3], (1, 1))   # 光伏功率计算
 
-    %光伏发电 出力
-     for ii=1:size(PV,1)
-        if PV(ii,PV_PMAX)==0
-            Ppv(ii)=0;
-        else
-           if PV_break(ii)==0
-               PV(ii,PV_PMAX)=0;
-               Ppv(ii)=0;
-           else
-               Ppv(ii)=PV(ii,PV_PMAX)*betarnd(PV(ii,PV_ALPHA),PV(ii,PV_BETA));   %光伏功率计算
-           end
-        end
-     end
-    %%
-    PQ_after=zeros(size(bus,1),1);  %新能源的功率
+    PQ_after = np.zeros((bus.shape[0], 1))  # 新能源的功率
 
-    for ii=1:size(windF,1)
-        PQ_after(windF(ii,WF_BUS),1)=Pwind(ii)+ PQ_after(windF(ii,WF_BUS),1);
-    end
-    for ii=1:size(PV,1)
-        PQ_after(PV(ii,PV_BUS),1)=Ppv(ii)+ PQ_after(PV(ii,PV_BUS),1);
-    end
+    for ii in range(windF.shape[0]):
+        PQ_after[int(windF[ii, 0]), 0] = Pwind[ii, 0] + PQ_after[int(windF[ii, 0]), 0]
 
-    for ii=1:size(bus,1)
-        bus(:,PD)=load_e_p(:);
-        bus(:,QD)=load_e_q(:);
-    end
+    for ii in range(PV.shape[0]):
+        PQ_after[int(PV[ii, 0]), 0] = Ppv[ii, 0] + PQ_after[int(PV[ii, 0]), 0]
 
-    bus(:,PD)=bus(:,PD)-PQ_after(:);
-    %%
-    %设计返回矩阵back
-     back.bus=bus;
-     back.version= mpc.version;
-     back.baseMVA=mpc.baseMVA;
-     back.gen=mpc.gen;
-     back.branch=mpc.branch;
-     back.gencost=mpc.gencost;
-     renewable_record=[Pwind;Ppv];
-     end
+    bus[:, PD] = load_e_p
+    bus[:, QD] = load_e_q
+    bus[:, PD] = bus[:, PD] - PQ_after[:, 0]
+
+    # 返回更新之后的ppc
+    ppc['bus'] = bus
+    return ppc
 
 
+if __name__ == '__main__':
+    from pypower.loadcase import loadcase
+    ppc = loadcase('pypower/case14')
+    # add wind power in ppc
+    # WindP_bus(0), WindP_powermax(1), WindP_K(2), WindP_D(3),
+    # WindP_inspeed(4), WindP_ratespeed(5), WindP_outspeed(6)
+    ppc['windF'] = np.array([[11, 70, 2.016, 5.089, 3.5, 15, 25]])
+
+    # PV_bus, PV_powermax(1), PV_Alpha(2), PV_Beta(3)
+    ppc['PV'] = np.array([[4, 45, 2.06, 2.5]])
+    ppc0 = copy.deepcopy(ppc)
+    ppc2 = Monte_Carlo(ppc.copy(), 0.1)
+    print(2)
