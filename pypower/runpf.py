@@ -86,9 +86,7 @@ def runpf(casedata=None, ppopt=None, fname='', solvedcase=''):
 
     ## add zero columns to branch for flows if needed
     if ppc["branch"].shape[1] < QT:
-        ppc["branch"] = c_[ppc["branch"],
-                           zeros((ppc["branch"].shape[0],
-                                  QT - ppc["branch"].shape[1] + 1))]
+        ppc["branch"] = c_[ppc["branch"], zeros((ppc["branch"].shape[0], QT - ppc["branch"].shape[1] + 1))]
 
     ## convert to internal indexing
     ppc = ext2int(ppc)
@@ -319,7 +317,7 @@ def runpf(casedata=None, ppopt=None, fname='', solvedcase=''):
     if solvedcase:
         savecase(solvedcase, results)
 
-    return results, success
+    return results, success, Ybus
 
 
 if __name__ == '__main__':

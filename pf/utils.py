@@ -65,7 +65,8 @@ def GetNetData(bus, gen):
     P_Real = -bus[:, 2] + P_gen  # 节点输入有功功率
     Q_Real = -bus[:, 3] + Q_gen  # 节点输入无功功率
 
-    return PQNode, PVNode, SlackNode, P_Real, Q_Real
+    return np.array(PQNode, dtype='int32'), np.array(PVNode, dtype='int32'), np.array([SlackNode], dtype='int32'), \
+           P_Real, Q_Real
 
 
 def PolarNR(U, Angle, Y, PQNode, PVNode, SlackNode, P_Real, Q_Real, Tol):
