@@ -7,9 +7,9 @@ import numpy as np
 import matlab.engine
 import numpy as np
 import scipy.io as scio
-eng = matlab.engine.start_matlab()
-
-eng.cd("../matlab", nargout=0)
+# eng = matlab.engine.start_matlab()
+#
+# eng.cd("../matlab", nargout=0)
 
 
 def GetY(bus, branch):
