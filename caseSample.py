@@ -3,8 +3,7 @@ from pypower.loadcase import loadcase
 from Monte_Carlo import Monte_Carlo
 
 
-def case14_non_topo_change():
-    ppc = loadcase('pypower/case14')
+def case14_non_topo_change(ppc):
     # 蒙特卡洛抽样
     # WindP_bus(0), WindP_powermax(1), WindP_K(2), WindP_D(3),
     # WindP_inspeed(4), WindP_ratespeed(5), WindP_outspeed(6)

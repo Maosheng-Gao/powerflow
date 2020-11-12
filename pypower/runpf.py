@@ -79,14 +79,16 @@ def runpf(casedata=None, ppopt=None, fname='', solvedcase=''):
     ## options
     verbose = ppopt["VERBOSE"]
     qlim = ppopt["ENFORCE_Q_LIMS"]  ## enforce Q limits on gens?
-    dc = ppopt["PF_DC"]             ## use DC formulation?
+    dc = ppopt["PF_DC"]  ## use DC formulation?
 
     ## read data
     ppc = loadcase(casedata)
 
     ## add zero columns to branch for flows if needed
     if ppc["branch"].shape[1] < QT:
-        ppc["branch"] = c_[ppc["branch"], zeros((ppc["branch"].shape[0], QT - ppc["branch"].shape[1] + 1))]
+        ppc["branch"] = c_[ppc["branch"],
+                           zeros((ppc["branch"].shape[0],
+                                  QT - ppc["branch"].shape[1] + 1))]
 
     ## convert to internal indexing
     ppc = ext2int(ppc)
@@ -97,8 +99,8 @@ def runpf(casedata=None, ppopt=None, fname='', solvedcase=''):
     ref, pv, pq = bustypes(bus, gen)
 
     ## generator info
-    on = find(gen[:, GEN_STATUS] > 0)      ## which generators are on?
-    gbus = gen[on, GEN_BUS].astype(int)    ## what buses are they at?
+    on = find(gen[:, GEN_STATUS] > 0)  ## which generators are on?
+    gbus = gen[on, GEN_BUS].astype(int)  ## what buses are they at?
 
     ##-----  run the power flow  -----
     t0 = time()
@@ -106,7 +108,7 @@ def runpf(casedata=None, ppopt=None, fname='', solvedcase=''):
         v = ppver('all')
         stdout.write('PYPOWER Version %s, %s' % (v["Version"], v["Date"]))
 
-    if dc:                               # DC formulation
+    if dc:  # DC formulation
         if verbose:
             stdout.write(' -- DC Power Flow\n')
 
@@ -140,7 +142,7 @@ def runpf(casedata=None, ppopt=None, fname='', solvedcase=''):
         gen[refgen, PG] = gen[refgen, PG] + (B[ref, :] * Va - Pbus[ref]) * baseMVA
 
         success = 1
-    else:                                ## AC formulation
+    else:  ## AC formulation
         alg = ppopt['PF_ALG']
         if verbose > 0:
             if alg == 1:
@@ -157,17 +159,17 @@ def runpf(casedata=None, ppopt=None, fname='', solvedcase=''):
 
         ## initial state
         # V0    = ones(bus.shape[0])            ## flat start
-        V0  = bus[:, VM] * exp(1j * pi/180 * bus[:, VA])
-        vcb = ones(V0.shape)    # create mask of voltage-controlled buses
-        vcb[pq] = 0     # exclude PQ buses
-        k = find(vcb[gbus])     # in-service gens at v-c buses
+        V0 = bus[:, VM] * exp(1j * pi / 180 * bus[:, VA])
+        vcb = ones(V0.shape)  # create mask of voltage-controlled buses
+        vcb[pq] = 0  # exclude PQ buses
+        k = find(vcb[gbus])  # in-service gens at v-c buses
         V0[gbus[k]] = gen[on[k], VG] / abs(V0[gbus[k]]) * V0[gbus[k]]
 
         if qlim:
-            ref0 = ref                         ## save index and angle of
-            Varef0 = bus[ref0, VA]             ##   original reference bus(es)
-            limited = []                       ## list of indices of gens @ Q lims
-            fixedQg = zeros(gen.shape[0])      ## Qg of gens at Q limits
+            ref0 = ref  ## save index and angle of
+            Varef0 = bus[ref0, VA]  ##   original reference bus(es)
+            limited = []  ## list of indices of gens @ Q lims
+            fixedQg = zeros(gen.shape[0])  ## Qg of gens at Q limits
 
         ## build admittance matrices
         Ybus, Yf, Yt = makeYbus(baseMVA, bus, branch)
@@ -194,30 +196,30 @@ def runpf(casedata=None, ppopt=None, fname='', solvedcase=''):
             ## update data matrices with solution
             bus, gen, branch = pfsoln(baseMVA, bus, gen, branch, Ybus, Yf, Yt, V, ref, pv, pq)
 
-            if qlim:             ## enforce generator Q limits
+            if qlim:  ## enforce generator Q limits
                 ## find gens with violated Q constraints
                 gen_status = gen[:, GEN_STATUS] > 0
                 qg_max_lim = gen[:, QG] > gen[:, QMAX] + ppopt["OPF_VIOLATION"]
                 qg_min_lim = gen[:, QG] < gen[:, QMIN] - ppopt["OPF_VIOLATION"]
-                
-                mx = find( gen_status & qg_max_lim )
-                mn = find( gen_status & qg_min_lim )
-                
+
+                mx = find(gen_status & qg_max_lim)
+                mn = find(gen_status & qg_min_lim)
+
                 if len(mx) > 0 or len(mn) > 0:  ## we have some Q limit violations
                     # first check for INFEASIBILITY (all remaining gens violating)
                     infeas = union1d(mx, mn)
-                    remaining = find( gen_status & 
-                                     (bus[gen[:, GEN_BUS], BUS_TYPE] == PV | 
+                    remaining = find(gen_status &
+                                     (bus[gen[:, GEN_BUS], BUS_TYPE] == PV |
                                       bus[gen[:, GEN_BUS], BUS_TYPE] == REF))
                     if len(infeas) == len(remaining) or all(infeas == remaining):
                         if verbose:
                             print('All %d remaining gens exceed to their Q limits: INFEASIBLE PROBLEM\n' % len(infeas))
-                        
+
                         success = 0
                         break
 
                     ## one at a time?
-                    if qlim == 2:    ## fix largest violation, ignore the rest
+                    if qlim == 2:  ## fix largest violation, ignore the rest
                         k = argmax(r_[gen[mx, QG] - gen[mx, QMAX],
                                       gen[mn, QMIN] - gen[mn, QG]])
                         if k > len(mx):
@@ -241,18 +243,18 @@ def runpf(casedata=None, ppopt=None, fname='', solvedcase=''):
                     mx = r_[mx, mn].astype(int)
 
                     ## convert to PQ bus
-                    gen[mx, QG] = fixedQg[mx]      ## set Qg to binding 
-                    for i in range(len(mx)):            ## [one at a time, since they may be at same bus]
-                        gen[mx[i], GEN_STATUS] = 0        ## temporarily turn off gen,
-                        bi = gen[mx[i], GEN_BUS]   ## adjust load accordingly,
+                    gen[mx, QG] = fixedQg[mx]  ## set Qg to binding
+                    for i in range(len(mx)):  ## [one at a time, since they may be at same bus]
+                        gen[mx[i], GEN_STATUS] = 0  ## temporarily turn off gen,
+                        bi = gen[mx[i], GEN_BUS]  ## adjust load accordingly,
                         bus[bi, [PD, QD]] = (bus[bi, [PD, QD]] - gen[mx[i], [PG, QG]])
-                    
+
                     if len(ref) > 1 and any(bus[gen[mx, GEN_BUS], BUS_TYPE] == REF):
                         raise ValueError('Sorry, PYPOWER cannot enforce Q '
                                          'limits for slack buses in systems '
                                          'with multiple slacks.')
-                    
-                    bus[gen[mx, GEN_BUS].astype(int), BUS_TYPE] = PQ   ## & set bus type to PQ
+
+                    bus[gen[mx, GEN_BUS].astype(int), BUS_TYPE] = PQ  ## & set bus type to PQ
 
                     ## update bus index lists of each type of bus
                     ref_temp = ref
@@ -269,18 +271,18 @@ def runpf(casedata=None, ppopt=None, fname='', solvedcase=''):
 
                     limited = r_[limited, mx].astype(int)
                 else:
-                    repeat = 0 ## no more generator Q limits violated
+                    repeat = 0  ## no more generator Q limits violated
             else:
-                repeat = 0     ## don't enforce generator Q limits, once is enough
+                repeat = 0  ## don't enforce generator Q limits, once is enough
 
         if qlim and len(limited) > 0:
             ## restore injections from limited gens [those at Q limits]
-            gen[limited, QG] = fixedQg[limited]    ## restore Qg value,
-            for i in range(len(limited)):               ## [one at a time, since they may be at same bus]
-                bi = gen[limited[i], GEN_BUS]           ## re-adjust load,
+            gen[limited, QG] = fixedQg[limited]  ## restore Qg value,
+            for i in range(len(limited)):  ## [one at a time, since they may be at same bus]
+                bi = gen[limited[i], GEN_BUS]  ## re-adjust load,
                 bus[bi, [PD, QD]] = bus[bi, [PD, QD]] + gen[limited[i], [PG, QG]]
-                gen[limited[i], GEN_STATUS] = 1           ## and turn gen back on
-            
+                gen[limited[i], GEN_STATUS] = 1  ## and turn gen back on
+
             if ref != ref0:
                 ## adjust voltage angles to make original ref bus correct
                 bus[:, VA] = bus[:, VA] - bus[ref0, VA] + Varef0
@@ -317,7 +319,7 @@ def runpf(casedata=None, ppopt=None, fname='', solvedcase=''):
     if solvedcase:
         savecase(solvedcase, results)
 
-    return results, success, Ybus
+    return results, success
 
 
 if __name__ == '__main__':

@@ -69,7 +69,9 @@ def GetNetData(bus, gen):
            P_Real, Q_Real
 
 
-def PolarNR(U, Angle, Y, PQNode, PVNode, SlackNode, P_Real, Q_Real, Tol):
+def PolarNR(U0, Y, PQNode, PVNode, SlackNode, P_Real, Q_Real, Tol):
+    Angle = np.imag(U0)
+    U = np.real(U0)
     P_iter = 0  # 为形成雅可比矩阵
     Q_iter = 0  # 为形成雅可比矩阵
     NumBus = Y.shape[0]  # 节点数目
@@ -92,7 +94,7 @@ def PolarNR(U, Angle, Y, PQNode, PVNode, SlackNode, P_Real, Q_Real, Tol):
             P_iter = P_iter+1
     DeltaPQ = np.vstack([DeltaP, DeltaQ])  # 功率不平衡量
     MaxError = np.max(np.abs(DeltaPQ))
-    print(MaxError)
+    # print(MaxError)
     if MaxError<Tol:
         return(U, Angle, MaxError)
     HN_iter = -1   # 初始化雅可比矩阵
@@ -159,12 +161,3 @@ def PolarNR(U, Angle, Y, PQNode, PVNode, SlackNode, P_Real, Q_Real, Tol):
                 U[i] = U[i]-U[i]*DeltaU_U[U_U_iter]
     return U, Angle, MaxError
 
-
-if __name__ == '__main__':
-    A = eng.case14()
-    bus = np.array(A['bus'])
-    gen = np.array(A['gen'])
-    branch = np.array(A['branch'])
-    GetY(bus, branch)
-    GetNetData(bus, gen, branch)
-    print(A)

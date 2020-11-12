@@ -91,6 +91,8 @@ def newtonpf(Ybus, Sbus, V0, ref, pv, pq, ppopt=None):
         J21 = dS_dVa[array([pq]).T, pvpq].imag
         J22 = dS_dVm[array([pq]).T, pq].imag
 
+        tes1 = hstack([J11, J12])
+        tes2 = hstack([J21, J22])
         J = vstack([
                 hstack([J11, J12]),
                 hstack([J21, J22])
