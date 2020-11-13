@@ -4,7 +4,7 @@
 # LineData: fbus  tbus r  x  b_2  ratio
 import numpy as np
 # import matlab
-import matlab.engine
+# import matlab.engine
 import numpy as np
 import scipy.io as scio
 # eng = matlab.engine.start_matlab()
@@ -65,15 +65,15 @@ def GetNetData(bus, gen):
     P_Real = -bus[:, 2] + P_gen  # 节点输入有功功率
     Q_Real = -bus[:, 3] + Q_gen  # 节点输入无功功率
 
-    return np.array(PQNode, dtype='int32'), np.array(PVNode, dtype='int32'), np.array([SlackNode], dtype='int32'), \
+    return np.array(PQNode, dtype='int32'), np.array(PVNode, dtype='int32'), [SlackNode], \
            P_Real, Q_Real
 
 
-def PolarNR(U0, Y, PQNode, PVNode, SlackNode, P_Real, Q_Real, Tol):
-    Angle = np.imag(U0)
-    U = np.real(U0)
+def PolarNR(U, Angle, Y, PQNode, PVNode, SlackNode, P_Real, Q_Real, Tol):
     P_iter = 0  # 为形成雅可比矩阵
     Q_iter = 0  # 为形成雅可比矩阵
+    P_Real = P_Real[:, np.newaxis]
+    Q_Real = Q_Real[:, np.newaxis]
     NumBus = Y.shape[0]  # 节点数目
     NumPQ = max(PQNode.shape)  # PQ节点数目
     G = Y.real
@@ -82,19 +82,25 @@ def PolarNR(U0, Y, PQNode, PVNode, SlackNode, P_Real, Q_Real, Tol):
     Q = np.zeros([NumBus, 1])
     DeltaP = np.zeros([NumBus-1, 1])
     DeltaQ = np.zeros([NumPQ, 1])
+
+    detaP_index = list(range(NumBus))
+    del detaP_index[int(SlackNode)]
+
     # 求解功率不平衡量
     for i in range(NumBus):
-        P[i] = U[i]*np.sum(U*(G[i, :]*np.cos(Angle[i]-Angle) + B[i, :]*np.sin(Angle[i]-Angle)))
-        Q[i] = U[i]*np.sum(U*(G[i, :]* np.sin(Angle[i]-Angle) - B[i, :]*np.cos(Angle[i]-Angle)))
-        if i != SlackNode:    # 不是平衡节点
-            DeltaP[P_iter] = P_Real[i]-P[i]  # NumPQ+NumPV
-            if i in PQNode:    # PQ节点
-                DeltaQ[Q_iter] = Q_Real[i]-Q[i] # NumPQ
-                Q_iter = Q_iter+1
-            P_iter = P_iter+1
+        P[i] = U[i]*np.sum(U*(G[i, :] * np.cos(Angle[i]-Angle) + B[i, :]*np.sin(Angle[i]-Angle)))
+        Q[i] = U[i]*np.sum(U*(G[i, :] * np.sin(Angle[i]-Angle) - B[i, :]*np.cos(Angle[i]-Angle)))
+    DeltaP = P_Real[detaP_index]-P[detaP_index]
+    DeltaQ = Q_Real[PQNode] - Q[PQNode]
+        # if i != SlackNode:    # 不是平衡节点
+        #     DeltaP[P_iter] = P_Real[i]-P[i]  # NumPQ+NumPV
+        #     if i in PQNode:    # PQ节点
+        #         DeltaQ[Q_iter] = Q_Real[i]-Q[i] # NumPQ
+        #         Q_iter = Q_iter+1
+        #     P_iter = P_iter+1
     DeltaPQ = np.vstack([DeltaP, DeltaQ])  # 功率不平衡量
     MaxError = np.max(np.abs(DeltaPQ))
-    # print(MaxError)
+    print(MaxError)
     if MaxError<Tol:
         return(U, Angle, MaxError)
     HN_iter = -1   # 初始化雅可比矩阵
@@ -160,4 +166,3 @@ def PolarNR(U0, Y, PQNode, PVNode, SlackNode, P_Real, Q_Real, Tol):
                 U_U_iter = U_U_iter+1
                 U[i] = U[i]-U[i]*DeltaU_U[U_U_iter]
     return U, Angle, MaxError
-

@@ -193,7 +193,9 @@ def runpf(casedata=None, ppopt=None, fname='', solvedcase=''):
                              'Gauss-Seidel power flow algorithms currently '
                              'implemented.\n')
 
-            ## update data matrices with solution
+            # update data matrices with solution
+            import numpy as np
+            TESTv = np.abs(V)
             bus, gen, branch = pfsoln(baseMVA, bus, gen, branch, Ybus, Yf, Yt, V, ref, pv, pq)
 
             if qlim:  ## enforce generator Q limits

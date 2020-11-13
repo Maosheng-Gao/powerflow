@@ -83,5 +83,5 @@ def makeYbus(baseMVA, bus, branch):
     Ybus = Cf.T * Yf + Ct.T * Yt + \
         csr_matrix((Ysh, (range(nb), range(nb))), (nb, nb))
 
-    Ybus = Ybus.todense()
+    # Ybus = Ybus.todense()
     return Ybus, Yf, Yt
