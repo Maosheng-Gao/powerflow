@@ -1,6 +1,6 @@
 import numpy as np
 from pypower.loadcase import loadcase
-from Monte_Carlo import Monte_Carlo
+from sampleData.Monte_Carlo import Monte_Carlo
 
 
 def case14_non_topo_change(ppc):

@@ -1,7 +1,7 @@
 from pf.utils import GetY, GetNetData, PolarNR
 import numpy as np
 from pf.makeMatrix import makeY
-from caseSample import case14_non_topo_change
+from sampleData.caseSample import case14_non_topo_change
 
 import copy
 from sys import stdout, stderr
@@ -64,7 +64,7 @@ def runpf(ppc, ppopt):
     V, success, i = newtonpf(Ybus, Sbus, V0, ref, pv, pq, ppopt)
 
     if success:
-        return V, Sbus
+        return V, Sbus, Ybus
     else:
         print('Do not converged in {} iterations.'.format(i))
         return None, None
@@ -73,7 +73,7 @@ def runpf(ppc, ppopt):
 def prepare_train_data(case, save_dir, data_size=10000):
     if case == 'case14':
         ppc0 = loadcase('pypower/case14')
-        Ybus = makeYbus(ppc0['bus'], ppc0['branch'])
+        Ybus = makeY(ppc0['bus'], ppc0['branch'])
         G = np.real(Ybus)
         B = np.imag(Ybus)
         input_P = []
@@ -87,8 +87,10 @@ def prepare_train_data(case, save_dir, data_size=10000):
         while data_size >= 0:
             ppc = case14_non_topo_change(copy.deepcopy(ppc0))
             ppopt = ppoption(None)
-            v, Sbus = runpf(ppc, ppopt)
+            v, Sbus, Ybus = runpf(ppc, ppopt)
             if v is not None:
+                G = np.real(Ybus.todense())
+                B = np.imag(Ybus.todense())
                 input_P.append(np.real(Sbus))
                 input_Q.append(np.imag(Sbus))
                 output_V.append(np.abs(v))
@@ -101,17 +103,33 @@ def prepare_train_data(case, save_dir, data_size=10000):
                  input_Q=input_Q, input_P=input_P, output_V=output_V, output_Seta=output_Seta)
 
 
+def makePV_V(ppc):
+    bus = ppc['bus']
+    bus_type = bus[:, 1]
+    ref = np.where(bus_type == 3)[0][0]
+    gen = ppc['gen']
+    Vm = bus[:, 7]
+    index = gen[:, 0].astype('int32') - 1
+    facter = np.zeros(Vm.shape)
+    facter[index] = 1
+    PV_V = Vm * facter
+
+    return PV_V[:, np.newaxis].astype('float32'), ref
+
+
 if __name__ == "__main__":
     # from pypower.runpf import runpf as runpowerflow
     # res, sucess = runpowerflow('pypower/case14')
     # # # coding=UTF-8
-    prepare_train_data('case14', './sampleData/data1.npz', data_size=100)
-    data = np.load('./sampleData/data1.npz', allow_pickle=True)
-    # print(data.keys())
-    G = data['G']
-    output_V = data['output_V']
-    print(np.array(data['G']))
-    #
+    # prepare_train_data('case14', './sampleData/test1.npz', data_size=1000)
+    # data = np.load('./sampleData/data1.npz', allow_pickle=True)
+    # # print(data.keys())
+    # G = data['G']
+    # output_V = data['output_V']
+    # print(np.array(data['G']))
+
+    ppc = loadcase('../pypower/case14')
+    makePV_V(ppc)
 
 
 
