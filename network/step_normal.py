@@ -63,17 +63,17 @@ class node_Conv_Layer(keras.layers.Layer):
 
         # 电压幅值的卷积核
         self.a = a
-        self.VKP = tf.constant(np.array(2 * E * I, dtype='float32'))
+        self.VKP = tf.constant(np.array(2 * E * I, dtype='float32').T)
 
-        self.VKV = tf.constant(np.array(F * B + E * G, dtype='float32'))
-        self.VKSETA = tf.constant(np.array(2 * F * G - 2 * E * B, dtype='float32'))
-        self.VKQ = tf.constant(np.array(-F * I, dtype='float32'))
+        self.VKV = tf.constant(np.array(F * B + E * G, dtype='float32').T)
+        self.VKSETA = tf.constant(np.array(2 * F * G - 2 * E * B, dtype='float32').T)
+        self.VKQ = tf.constant(np.array(-F * I, dtype='float32').T)
 
         # 电压相角的卷积核
-        self.SETAKSETA = tf.constant(np.array(N * G + M * B, dtype='float32'))
-        self.SETAKV = tf.constant(np.array(0.5 * N * B - 0.5 * M * G, dtype='float32'))
-        self.SETAKP = tf.constant(np.array(-M * I, dtype='float32'))
-        self.SETAKQ = tf.constant(np.array(-N * I, dtype='float32'))
+        self.SETAKSETA = tf.constant(np.array(N * G + M * B, dtype='float32').T)
+        self.SETAKV = tf.constant(np.array(0.5 * N * B - 0.5 * M * G, dtype='float32').T)
+        self.SETAKP = tf.constant(np.array(-M * I, dtype='float32').T)
+        self.SETAKQ = tf.constant(np.array(-N * I, dtype='float32').T)
 
 
     def call(self, inputs):
@@ -171,9 +171,16 @@ class graph_power_sys():
         for x in range(1, iteration):
             out_Seta_temp, out_v_temp = node_Conv_Layer(G=G, B=B, name=block + '_layer_' + str(x))\
                 ([out_v_temp, out_Seta_temp,  input_P, input_Q])
+            # 添加激活函数
+            out_Seta_temp = pooling(self.PV_V, ref_bus=self.ref, is_magnitude=False)(out_Seta_temp)
+            out_v_temp = pooling(self.PV_V, ref_bus=self.ref, is_magnitude=True)(out_v_temp)
             out_v = keras.layers.Concatenate(axis=-1)([out_v, out_v_temp])
             out_Seta = keras.layers.Concatenate(axis=-1)([out_Seta, out_Seta_temp])
+
         out = keras.layers.Concatenate(axis=-1)([out_Seta, out_v])
+
+        # 添加BN归一化层
+        out = keras.layers.BatchNormalization(axis=2)(out)
 
         l1 = Linear_Layer(num=100, activation='relu', name=block+'_l1')([out])
         l2 = Linear_Layer(num=100, activation='relu', name=block+'_l2')([l1])
@@ -193,7 +200,7 @@ class graph_power_sys():
         # 开始训练
         self.model.fit(dataGEN,
                       steps_per_epoch=1000,
-                      epochs=1,
+                      epochs=10,
                       shuffle=True,
                       verbose=1)
         self.model.save(model_dir)
@@ -213,9 +220,9 @@ def load_step_data(data_dir):
     input_P = data['input_P'][:, :, np.newaxis]
     input_Q = data['input_Q'][:, :, np.newaxis]
 
-    input_V = data['input_V'][:, :, np.newaxis]
+    input_V = data['input_V'][:, :, np.newaxis]**2
     input_Seta = data['input_Seta'][:, :, np.newaxis]
-    output_V = data['output_V'][:, :, np.newaxis]
+    output_V = data['output_V'][:, :, np.newaxis]**2
     output_Seta = data['output_Seta'][:, :, np.newaxis]
     # MU_V = np.mean(output_V)
     # sgma_V = np.std(output_V)
@@ -279,7 +286,7 @@ def Z_Score_recover(trainData, mean_train, std_train):
 if __name__ == '__main__':
     # 准备训练数据
     input_V0, input_Seta0, input_P0, input_Q0, G, B, output_V0, output_Seta0 = \
-        load_step_data('./sampleData/data1.npz')
+        load_step_data('./sampleData/test1.npz')
     dataGEN = data_generator(input_V0, input_Seta0, input_P0, input_Q0, output_V0, output_Seta0, batch_size=30)
 
     # 计算PV节点的电压幅值
@@ -292,14 +299,14 @@ if __name__ == '__main__':
     model = graph_power_sys(PV_V, G, B, ref)
 
     model.train(dataGEN, './logs/model.h5')
-    model.load_model('./logs/model.h5')
+    # model.load_model('./logs/model.h5')
     # # 归一化处理
     # output_V0, mu_v, sgma_v = Z_Score(output_V0)
     # output_Seta0, mu_Seta, sgma_Seta = Z_Score(output_Seta0)
 
     # 验证集测试
     input_V, input_Seta, input_P, input_Q, G, B, output_V, output_Seta= \
-        load_step_data('./sampleData/test1.npz')
+        load_step_data('./sampleData/data1.npz')
     res_v, res_seta = model.predict(input_V, input_Seta, input_P, input_Q)
 
 
@@ -307,5 +314,5 @@ if __name__ == '__main__':
     # res_v = Z_Score_recover(res_v, mu_v, sgma_v)
     # res_seta = Z_Score_recover(res_seta, mu_Seta, sgma_Seta)
 
-    print(compute_acc(output_V, res_v, 0.001, True))
+    print(compute_acc(output_V, res_v, 0.0001, True))
     print(compute_acc(output_Seta, res_seta, 0.01, False))
